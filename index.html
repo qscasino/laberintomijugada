@@ -696,9 +696,14 @@
   <div id="confetti"></div>
 
   <script>
-    /* MI JUGADA specific storage key */
-    const STORAGE_KEY = 'laberintoMiJugadaPlayed';
-
+    /* MI JUGADA – clave específica para guardar la FECHA del último juego */
+    const STORAGE_KEY = 'laberintoMiJugadaLastPlay';
+  
+    // 🔹 helper: devuelve la fecha "YYYY-MM-DD"
+    function getTodayKey() {
+      return new Date().toISOString().slice(0, 10);
+    }
+  
     /* Preloader */
     window.addEventListener('load', function() {
       let p = 0;
@@ -713,23 +718,24 @@
         document.getElementById('progressText').textContent = Math.floor(p) + '%';
       }, 100);
     });
-
+  
     const canvas = document.getElementById('mazeCanvas');
     const ctx = canvas.getContext('2d');
-
+  
     const CELL_SIZE = 30;
     const MAZE_SIZE = 15;
-    /* MI JUGADA maze colors: purple walls with violet borders */
-    const WALL_COLOR = 'hsl(252, 40%, 17%)';
-    const WALL_BORDER = 'hsl(245, 100%, 67%)';
-    const PATH_COLOR = 'hsl(250, 39%, 15%)';
+  
+    /* MI JUGADA – colores violeta */
+    const WALL_COLOR   = 'hsl(252, 40%, 17%)';
+    const WALL_BORDER  = 'hsl(245, 100%, 67%)';
+    const PATH_COLOR   = 'hsl(250, 39%, 15%)';
     const PLAYER_COLOR = 'hsl(245, 100%, 67%)';
-    const PRIZE_COLOR = 'hsl(241, 77%, 61%)';
-
+    const PRIZE_COLOR  = 'hsl(241, 77%, 61%)';
+  
     let player = { x: 1, y: 1 };
-    let prize = { x: 13, y: 8 };
+    let prize  = { x: 13, y: 8 };
     let gameWon = false;
-
+  
     const maze = [
       [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
       [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
@@ -747,7 +753,7 @@
       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
       [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
     ];
-
+  
     function drawMaze() {
       for (let y = 0; y < MAZE_SIZE; y++) {
         for (let x = 0; x < MAZE_SIZE; x++) {
@@ -764,7 +770,7 @@
         }
       }
     }
-
+  
     function drawPlayer() {
       ctx.fillStyle = PLAYER_COLOR;
       ctx.shadowColor = 'rgba(135,121,255,.7)';
@@ -780,7 +786,7 @@
       ctx.fill();
       ctx.shadowBlur = 0;
     }
-
+  
     function drawPrize() {
       if (gameWon) return;
       ctx.save();
@@ -797,22 +803,27 @@
       );
       ctx.restore();
     }
-
-    function checkWin() {
-      if (player.x === prize.x && player.y === prize.y && !gameWon) {
-        gameWon = true;
-        localStorage.setItem(STORAGE_KEY, 'true');
-        showConfetti();
-        setTimeout(() => {
-          document.getElementById('resultModal').classList.add('show');
-        }, 500);
-      }
+  
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawMaze();
+      drawPrize();
+      drawPlayer();
     }
-
+  
+    // 🔹 guarda la FECHA de hoy
+    function markAsPlayed() {
+      const today = getTodayKey();
+      localStorage.setItem(STORAGE_KEY, today);
+      gameWon = true;
+    }
+  
     function movePlayer(dx, dy) {
       if (gameWon) return;
+  
       const newX = player.x + dx;
       const newY = player.y + dy;
+  
       if (
         newX >= 0 &&
         newX < MAZE_SIZE &&
@@ -822,13 +833,57 @@
       ) {
         player.x = newX;
         player.y = newY;
-        drawMaze();
-        drawPrize();
-        drawPlayer();
-        checkWin();
+        draw();
+  
+        if (player.x === prize.x && player.y === prize.y) {
+          markAsPlayed();
+          showWinModal();
+        }
       }
     }
-
+  
+    // 🎉 Modal de victoria
+    function showWinModal() {
+      showConfetti();
+      document.getElementById('resultModal').classList.add('show');
+    }
+  
+    function showSuccessMessage() {
+      // Por si acaso, vuelve a marcar la fecha
+      markAsPlayed();
+      const msg = document.getElementById('successMessage');
+      msg.style.display = 'block';
+      setTimeout(() => {
+        msg.style.display = 'none';
+      }, 5000);
+    }
+  
+    // 🎊 Confetti violeta
+    function showConfetti() {
+      const c = document.getElementById('confetti');
+      c.innerHTML = '';
+      const colors = [
+        'hsl(245, 100%, 67%)',
+        'hsl(241, 77%, 61%)',
+        'hsl(242, 72%, 74%)',
+        'hsl(222, 83%, 63%)'
+      ];
+      for (let i = 0; i < 100; i++) {
+        const d = document.createElement('div');
+        d.className = 'confetti-piece';
+        d.style.setProperty('--x', Math.random() * 100);
+        d.style.setProperty('--t', 2 + Math.random() * 2 + 's');
+        d.style.setProperty('--delay', Math.random() * 0.5 + 's');
+        d.style.setProperty('--amp', 2 + Math.random() * 4 + 'vw');
+        d.style.setProperty('--tsway', 1.5 + Math.random() + 's');
+        d.style.setProperty('--tspin', 1 + Math.random() * 1.5 + 's');
+        d.style.background = colors[Math.floor(Math.random() * colors.length)];
+        c.appendChild(d);
+      }
+      setTimeout(() => { c.innerHTML = ''; }, 5000);
+    }
+  
+    // 👉 Listeners
     document.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
         e.preventDefault();
@@ -844,68 +899,54 @@
         movePlayer(1, 0);
       }
     });
-
+  
     document.getElementById('btnUp').addEventListener('click', () => movePlayer(0, -1));
     document.getElementById('btnDown').addEventListener('click', () => movePlayer(0, 1));
     document.getElementById('btnLeft').addEventListener('click', () => movePlayer(-1, 0));
     document.getElementById('btnRight').addEventListener('click', () => movePlayer(1, 0));
-
+  
     document.getElementById('closeModal').addEventListener('click', () => {
       document.getElementById('resultModal').classList.remove('show');
       showSuccessMessage();
     });
-
+  
     document.getElementById('claimBtn').addEventListener('click', () => {
       document.getElementById('resultModal').classList.remove('show');
       showSuccessMessage();
     });
-
-    function showSuccessMessage() {
-      const msg = document.getElementById('successMessage');
-      msg.style.display = 'block';
-      setTimeout(() => {
-        msg.style.display = 'none';
-      }, 5000);
-    }
-
-    function showConfetti() {
-      const c = document.getElementById('confetti');
-      c.innerHTML = '';
-      /* MI JUGADA purple confetti colors */
-      const colors = ['hsl(245, 100%, 67%)', 'hsl(241, 77%, 61%)', 'hsl(242, 72%, 74%)', 'hsl(222, 83%, 63%)'];
-      for (let i = 0; i < 100; i++) {
-        const d = document.createElement('div');
-        d.className = 'confetti-piece';
-        d.style.setProperty('--x', Math.random() * 100);
-        d.style.setProperty('--t', 2 + Math.random() * 2 + 's');
-        d.style.setProperty('--delay', Math.random() * 0.5 + 's');
-        d.style.setProperty('--amp', 2 + Math.random() * 4 + 'vw');
-        d.style.setProperty('--tsway', 1.5 + Math.random() + 's');
-        d.style.setProperty('--tspin', 1 + Math.random() * 1.5 + 's');
-        d.style.background = colors[Math.floor(Math.random() * colors.length)];
-        c.appendChild(d);
+  
+    window.addEventListener('click', (e) => {
+      const modal = document.getElementById('resultModal');
+      if (e.target === modal) {
+        modal.classList.remove('show');
+        showSuccessMessage();
       }
-      setTimeout(() => { c.innerHTML = ''; }, 5000);
-    }
-
-    function startGame() {
-      const hasPlayed = localStorage.getItem(STORAGE_KEY);
-      if (hasPlayed === 'true') {
-        drawMaze();
-        drawPrize();
-        drawPlayer();
+    });
+  
+    // 🔁 Inicialización: decide si hoy puede jugar o ya lo ganó
+    function initGame() {
+      const lastPlay = localStorage.getItem(STORAGE_KEY);
+      const today = getTodayKey();
+      const alreadyPlayedToday = lastPlay === today;
+  
+      if (alreadyPlayedToday) {
+        gameWon = true;
+        player.x = prize.x;
+        player.y = prize.y;
+        draw();
         setTimeout(() => {
           showConfetti();
           document.getElementById('resultModal').classList.add('show');
-        }, 1000);
+        }, 800);
       } else {
-        drawMaze();
-        drawPrize();
-        drawPlayer();
+        gameWon = false;
+        player = { x: 1, y: 1 };
+        draw();
       }
     }
-
-    setTimeout(startGame, 600);
+  
+    // Esperamos un poquito para que termine el preloader
+    setTimeout(initGame, 600);
   </script>
 </body>
 </html>
